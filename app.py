@@ -16,4 +16,5 @@ async def on_startup(dispatcher):
 
 if __name__ == '__main__':
     executor.start_polling(dp, on_startup=on_startup)
-
+    # from utils.db_api.database import create_database
+    # create_database()
