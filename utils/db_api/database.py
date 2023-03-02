@@ -25,9 +25,14 @@ class Movie(BaseModel):
     title = CharField(null=False, unique=True)
     url = CharField(null=False, unique=True)
     user = IntegerField()
+    vote = IntegerField(default=0)
+
+class Voting(BaseModel):
+    id = AutoField(primary_key=True, unique=True)
+    open = BooleanField()
 
 def create_database():
-    db.create_tables([User, Movie])
+    db.create_tables([User, Movie, Voting])
 
 
 

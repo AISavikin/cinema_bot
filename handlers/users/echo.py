@@ -1,5 +1,6 @@
 from aiogram import types
 from aiogram.dispatcher import FSMContext
+from .main_handler import voting, change_vote
 
 from loader import dp
 
@@ -19,3 +20,20 @@ async def bot_echo_all(message: types.Message, state: FSMContext):
     await message.answer(f"Эхо в состоянии <code>{state}</code>.\n"
                          f"\nСодержание сообщения:\n"
                          f"<code>{message}</code>")
+
+@dp.callback_query_handler(state="*")
+async def clean_callback_query(call: types.CallbackQuery):
+    print('Эхо callback')
+    print(call)
+    if 'Выберите фильм' in call.message.text:
+        await voting(call)
+        return
+    elif 'Вы проголосовали за фильм' in call.message.text:
+        await change_vote(call)
+        return
+    elif call.data == 'hide':
+        await call.message.delete()
+    else:
+        # await call.message.edit_reply_markup(reply_markup=types.InlineKeyboardMarkup())
+        await call.answer('Сейчас недоступно')
+        await call.message.delete()
