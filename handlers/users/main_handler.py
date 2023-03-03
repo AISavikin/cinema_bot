@@ -4,6 +4,7 @@ from aiogram.dispatcher.filters import Text
 import aiogram.utils.markdown as fmt
 from utils.db_api.database import Movie
 import logging
+from asyncio import sleep
 
 from loader import dp
 
@@ -18,7 +19,6 @@ async def show_movie(msg: types.Message, state: FSMContext):
     await msg.answer('Список фильмов', reply_markup=kbrd)
 
 
-
 @dp.callback_query_handler(Text(contains='change_vote'))
 async def change_vote(call: types.CallbackQuery):
     logging.info(f'{call.from_user.full_name} Передумал!')
@@ -26,7 +26,7 @@ async def change_vote(call: types.CallbackQuery):
     movie = Movie.get_by_id(movie_id)
     movie.update(vote=movie.vote - 1).where(Movie.id == movie).execute()
     kbrd = types.InlineKeyboardMarkup(row_width=2)
-    for movie in Movie.select().where(Movie.user != call.message.chat.id):
+    for movie in Movie.select():
         kbrd.insert(types.InlineKeyboardButton(movie.title, url=movie.url))
         kbrd.insert(types.InlineKeyboardButton('Проголосовать', callback_data=movie.id))
     await call.message.edit_text('Выберите фильм', reply_markup=kbrd)
@@ -45,3 +45,20 @@ async def voting(call: types.CallbackQuery):
                                                                 callback_data=f'change_vote|{movie.id}')))
     if 'Второй тур' in call.message.text:
         await call.message.edit_reply_markup(types.InlineKeyboardMarkup())
+
+
+@dp.callback_query_handler(Text(equals='result'))
+async def result(call: types.CallbackQuery):
+    await call.message.edit_reply_markup(types.InlineKeyboardMarkup())
+    results = Movie.select().where(Movie.vote > 0).order_by(-Movie.vote)
+    if not results:
+        await call.message.edit_text('В данный момент победитель не определён')
+        return
+    text = 'И победителем становится'
+    message_text = text[0]
+    await call.message.edit_text(message_text)
+    for let in text[1:]:
+        message_text += let
+        await call.message.edit_text(message_text + '...')
+    await sleep(2)
+    await call.message.edit_text(f'🎉🎉🎉🎉🎉\n"{fmt.bold(results[0].title)}"!', parse_mode=types.ParseMode.MARKDOWN)

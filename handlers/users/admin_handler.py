@@ -3,12 +3,13 @@ import logging
 from aiogram import types
 from aiogram.dispatcher.filters.builtin import Command
 from aiogram.dispatcher.filters import Text
+from aiogram.utils.exceptions import ChatNotFound
+
 from utils.db_api.database import Movie, User
 from aiogram.dispatcher import FSMContext
 from keyboards.inline.keyboards import *
 from states.states import AdminState
 from utils.timer import timer
-
 
 import asyncio
 
@@ -42,8 +43,12 @@ async def send_all(call: types.CallbackQuery, state: FSMContext):
     if call.data == 'yes':
         data = await state.get_data()
         for user in User.select():
-            await dp.bot.send_message(user.telegram_id, data['text_message'])
-            await state.finish()
+            try:
+                await dp.bot.send_message(user.telegram_id, data['text_message'])
+                await state.finish()
+            except ChatNotFound:
+                logging.warning(f'{user.name} не открыл чат с ботом')
+
     if call.data == 'no':
         await state.finish()
         await dp.bot.send_message(call.from_user.id, 'Сообщение не отправлено')
@@ -61,25 +66,6 @@ async def start_voting(call: types.CallbackQuery, results=None):
             loop.create_task(timer(user, results))
         else:
             loop.create_task(timer(user))
-
-
-
-
-@dp.callback_query_handler(Text(equals='result'))
-async def result(call: types.CallbackQuery):
-    await call.message.edit_reply_markup(types.InlineKeyboardMarkup())
-    results = Movie.select().where(Movie.vote > 0).order_by(-Movie.vote)
-    if not results:
-        await call.message.edit_text('В данный момент победитель не определён')
-        return
-    text = 'И победителем становится'
-    message_text = text[0]
-    msg = await call.message.answer(message_text)
-    for let in text[1:]:
-        message_text += let
-        await msg.edit_text(message_text + '...')
-    await asyncio.sleep(2)
-    await msg.edit_text(f'🎉🎉🎉🎉🎉\n"{results[0].title}"!')
 
 
 @dp.callback_query_handler(Text(equals='second_tour'))
