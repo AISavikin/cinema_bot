@@ -1,13 +1,18 @@
+import logging
+
 from aiogram import types
 from aiogram.dispatcher.filters.builtin import Command
 from aiogram.dispatcher.filters import Text
-from utils.db_api.database import Movie, User, Voting
+from utils.db_api.database import Movie, User
 from aiogram.dispatcher import FSMContext
 from keyboards.inline.keyboards import *
-from states.states import AdminState, CinemaState
-from loader import dp
-import aiogram.utils.markdown as fmt
+from states.states import AdminState
+from utils.timer import timer
+
+
 import asyncio
+
+from loader import dp
 
 
 @dp.message_handler(Command('admin'), state='*')
@@ -46,59 +51,27 @@ async def send_all(call: types.CallbackQuery, state: FSMContext):
 
 @dp.callback_query_handler(Text(equals='start_voting'))
 async def start_voting(call: types.CallbackQuery, results=None):
+    await call.answer()
     for movie in Movie.select():
         movie.update(vote=0).execute()
     for user in User.select():
-        message = await dp.bot.send_message(user.telegram_id, 'Голосование открыто!\nДо конца голосования:')
         loop = asyncio.get_event_loop()
+
         if results:
-            loop.create_task(timer(message, results))
+            loop.create_task(timer(user, results))
         else:
-            loop.create_task(timer(message))
+            loop.create_task(timer(user))
 
 
-async def timer(message: types.Message, results=None):
-    kbrd = types.InlineKeyboardMarkup(row_width=2)
-    if results is None:
-        for movie in Movie.select().where(Movie.user != message.chat.id):
-            kbrd.insert(types.InlineKeyboardButton(movie.title, url=movie.url))
-            kbrd.insert(types.InlineKeyboardButton('Проголосовать', callback_data=movie.id))
-    else:
-        for movie in results:
-            kbrd.insert(types.InlineKeyboardButton(movie.title, url=movie.url))
-            kbrd.insert(types.InlineKeyboardButton('Проголосовать', callback_data=movie.id))
-
-    choise_msg = await message.answer('Выберите фильм', reply_markup=kbrd)
-    sec = 20
-    while sec != 0:
-        h = sec // 3600
-        sec -= h * 3600
-        m, s = divmod(sec, 60)
-        if h > 0:
-            countdown = f'{h}:{m:02d}:{s:02d}'
-        else:
-            countdown = f'{m:02d}:{s:02d}'
-        await message.edit_text(f'Голосование открыто!\nДо конца голосования:\n{fmt.bold(countdown)}',
-                                parse_mode=types.ParseMode.MARKDOWN)
-        await asyncio.sleep(1)
-        sec -= 1
-
-    await choise_msg.edit_reply_markup(reply_markup=types.InlineKeyboardMarkup())
-    results = Movie.select().where(Movie.vote > 0).order_by(-Movie.vote)
-    if len(results) > 1:
-        winners = '\n'.join([mov.title for mov in results if mov.vote == results[0].vote])
-        await message.edit_text(f'Явного победителя нет.\nВо второй тур проходят:\n\n{fmt.bold(winners)}',
-                                parse_mode=types.ParseMode.MARKDOWN, )
-    else:
-        result_kbrd = types.InlineKeyboardMarkup().add(types.InlineKeyboardButton('Результаты', callback_data='result'))
-        await message.edit_text(f'Голосование завершено!\n{fmt.bold("Время вышло")}',
-                                parse_mode=types.ParseMode.MARKDOWN,
-                                reply_markup=result_kbrd)
 
 
 @dp.callback_query_handler(Text(equals='result'))
 async def result(call: types.CallbackQuery):
+    await call.message.edit_reply_markup(types.InlineKeyboardMarkup())
     results = Movie.select().where(Movie.vote > 0).order_by(-Movie.vote)
+    if not results:
+        await call.message.edit_text('В данный момент победитель не определён')
+        return
     text = 'И победителем становится'
     message_text = text[0]
     msg = await call.message.answer(message_text)

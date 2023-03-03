@@ -1,14 +1,14 @@
 from aiogram import types
 
 main_keyboard = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-main_keyboard.add('➕ Предложить фильм', '🎞️ Посмотреть предложенное')
-btn_y = types.InlineKeyboardButton('Да', callback_data='yes')
-btn_n = types.InlineKeyboardButton('Нет', callback_data='no')
+main_keyboard.add('🎞️ Посмотреть предложенное')
 buttons = [
     [
         types.InlineKeyboardButton('Да', callback_data='yes'),
         types.InlineKeyboardButton('Нет', callback_data='no')
     ],
+    [types.InlineKeyboardButton('Отмена', callback_data='hide')]
+    ,
 ]
 kbrd_y_n = types.InlineKeyboardMarkup(inline_keyboard=buttons)
 

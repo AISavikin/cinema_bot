@@ -1,5 +1,3 @@
-import logging
-
 from aiogram import types
 from states.states import CinemaState
 from utils.find_movies import find_movies
@@ -8,7 +6,6 @@ from aiogram.dispatcher.filters import Text
 from keyboards.inline.keyboards import kbrd_y_n, main_keyboard
 import aiogram.utils.markdown as fmt
 from utils.db_api.database import Movie
-# from .echo import clean_callback_query
 
 from loader import dp
 
@@ -19,7 +16,7 @@ async def movie_to_db(call: types.CallbackQuery, state: FSMContext, data: tuple)
     try:
         Movie.create(title=title, url=url, user=user_id)
         await call.answer('Фильм добавлен в базу.', show_alert=True)
-        await call.message.edit_text(f'Вы добавили:\n"{fmt.bold(title)}"\nк списку для просмотра',
+        await call.message.edit_text(f'Вы добавили:\n"{fmt.bold(title)}"',
                                      parse_mode=types.ParseMode.MARKDOWN,
                                      reply_markup=types.InlineKeyboardMarkup())
         await state.finish()
@@ -30,11 +27,17 @@ async def movie_to_db(call: types.CallbackQuery, state: FSMContext, data: tuple)
             await call.message.answer(f'Неожиданная ошибка! {e}')
 
 
-@dp.message_handler(Text(equals='➕ Предложить фильм'), state='*')
-async def add_movie(msg: types.Message):
+@dp.message_handler(state='*')
+async def add_movie(msg: types.Message, state: FSMContext):
     await CinemaState.add_movie.set()
-    await msg.answer('Предлагай, напиши название фильма:')
-
+    title = msg.text
+    movies = find_movies(title)
+    if movies is None:
+        await msg.answer('Я ничего не нашёл, попробуй ещё')
+        return
+    await state.update_data(data=movies)
+    await msg.answer(f'Это он?\n{fmt.hide_link(movies["top_result"][1])}', reply_markup=kbrd_y_n,
+                     parse_mode=types.ParseMode.HTML)
 
 @dp.message_handler(state=CinemaState.add_movie)
 async def find_movie(msg: types.Message, state: FSMContext):
@@ -79,5 +82,5 @@ async def select_movie(call: types.CallbackQuery, state: FSMContext):
 
     else:
         print('SELECT MOVIE')
-        await call.message.edit_reply_markup(reply_markup=types.InlineKeyboardMarkup())
         await call.answer('Сейчас недоступно')
+        await call.message.delete()

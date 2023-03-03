@@ -1,9 +1,9 @@
 from aiogram import types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
-from keyboards.inline.keyboards import kbrd_y_n, main_keyboard
 import aiogram.utils.markdown as fmt
 from utils.db_api.database import Movie
+import logging
 
 from loader import dp
 
@@ -21,8 +21,7 @@ async def show_movie(msg: types.Message, state: FSMContext):
 
 @dp.callback_query_handler(Text(contains='change_vote'))
 async def change_vote(call: types.CallbackQuery):
-    await dp.bot.send_message(298325596, f'Отчитываюсь, хозяин\n{call.from_user.full_name} Передумал!')
-
+    logging.info(f'{call.from_user.full_name} Передумал!')
     movie_id = call.data.split('|')[-1]
     movie = Movie.get_by_id(movie_id)
     movie.update(vote=movie.vote - 1).where(Movie.id == movie).execute()
@@ -38,11 +37,11 @@ async def voting(call: types.CallbackQuery):
     movie = Movie.get_by_id(call.data)
     movie.update(vote=movie.vote + 1).where(Movie.id == movie).execute()
     await call.answer('Ваш голос учтён!')
-    await dp.bot.send_message(298325596,
-                              f'Отчитываюсь, хозяин\n{call.from_user.full_name} проголосовал за {movie.title}')
+    logging.info(f'{call.from_user.full_name} проголосовал за {movie.title}')
     await call.message.edit_text(f'Вы проголосовали за фильм:\n\n"{fmt.bold(movie.title)}"',
                                  parse_mode=types.ParseMode.MARKDOWN,
                                  reply_markup=types.InlineKeyboardMarkup().add(
                                      types.InlineKeyboardButton('Изменить решение',
                                                                 callback_data=f'change_vote|{movie.id}')))
-
+    if 'Второй тур' in call.message.text:
+        await call.message.edit_reply_markup(types.InlineKeyboardMarkup())
