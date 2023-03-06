@@ -2,7 +2,6 @@ from peewee import *
 
 db = SqliteDatabase('database.db', pragmas={'foreign_keys': 1})
 
-
 class BaseModel(Model):
     class Meta:
         database = db
@@ -13,12 +12,12 @@ class User(BaseModel):
     name = CharField(null=False, unique=True)
     telegram_id = IntegerField()
 
-
     class Meta:
         db_table = 'users'
 
     def __str__(self):
         return self.name
+
 
 class Movie(BaseModel):
     id = AutoField(primary_key=True, unique=True)
@@ -27,13 +26,19 @@ class Movie(BaseModel):
     user = IntegerField()
     vote = IntegerField(default=0)
 
-class Voting(BaseModel):
-    id = AutoField(primary_key=True, unique=True)
-    open = BooleanField()
+    def __str__(self):
+        return self.title
+
+
+class Rating(BaseModel):
+    id = AutoField(primary_key=True)
+    movie = ForeignKeyField(Movie, related_name='rating')
+    user = ForeignKeyField(User, related_name='rating')
+    grade = IntegerField(default=0)
+
 
 def create_database():
-    db.create_tables([User, Movie, Voting])
-
+    db.create_tables([User, Movie])
 
 
 if __name__ == '__main__':

@@ -5,7 +5,7 @@ from aiogram.dispatcher.filters.builtin import Command
 from aiogram.dispatcher.filters import Text
 from aiogram.utils.exceptions import ChatNotFound
 
-from utils.db_api.database import Movie, User
+from utils.db_api.database import Movie, User, Rating
 from aiogram.dispatcher import FSMContext
 from keyboards.inline.keyboards import *
 from states.states import AdminState
@@ -54,36 +54,65 @@ async def send_all(call: types.CallbackQuery, state: FSMContext):
         await dp.bot.send_message(call.from_user.id, 'Сообщение не отправлено')
 
 
-@dp.callback_query_handler(Text(equals='start_voting'))
-async def start_voting(call: types.CallbackQuery, results=None):
+@dp.callback_query_handler(Text(equals='yes'), state=AdminState.voting)
+async def start_voting(call: types.CallbackQuery, state: FSMContext):
+    await state.finish()
     await call.answer()
-    for movie in Movie.select():
-        movie.update(vote=0).execute()
+    rating = get_rating()
+    leaders = [i[0] for i in rating if i[1] == rating[0][1]]
     for user in User.select():
         loop = asyncio.get_event_loop()
-
-        if results:
-            loop.create_task(timer(user, results))
-        else:
-            loop.create_task(timer(user))
-
-
-@dp.callback_query_handler(Text(equals='second_tour'))
-async def second_tour(call: types.CallbackQuery):
-    results = [i for i in Movie.select().where(Movie.vote > 0).order_by(-Movie.vote)]
-    results = [mov for mov in results if mov.vote == results[0].vote]
-    await start_voting(call, results)
+        loop.create_task(timer(user, leaders))
 
 
 @dp.callback_query_handler(Text(equals='inter_result'))
 async def inter_result(call: types.CallbackQuery):
-    votes = [f'{i.title} - {i.vote}' for i in Movie.select().where(Movie.vote > 0).order_by(-Movie.vote)]
-    await call.message.answer('\n'.join(votes))
-
-
-@dp.callback_query_handler(Text(equals='del'))
-async def del_winner(call: types.CallbackQuery):
+    rating = get_rating()
+    leader = rating[0]
+    rating = [f'{i[0]}: {i[1]}' for i in rating]
     await call.answer()
-    winner = Movie.select().where(Movie.vote > 0).order_by(-Movie.vote)
-    if len(winner) > 0:
-        Movie.delete().where(Movie.id == winner[0].id).execute()
+    await call.message.edit_text(f'Лидер: {leader[0]}\n' + '\n'.join(rating))
+
+
+
+@dp.callback_query_handler(Text(equals='del_movie'))
+async def del_movie(call: types.CallbackQuery, state: FSMContext):
+    await AdminState.del_movie.set()
+    kbrd = types.InlineKeyboardMarkup()
+    for movie in Movie.select():
+        kbrd.add(types.InlineKeyboardButton(movie.title, callback_data=movie.id))
+    await call.message.edit_text('Фильмы', reply_markup=kbrd)
+
+
+@dp.callback_query_handler(state=AdminState.del_movie)
+async def del_movie(call: types.CallbackQuery, state: FSMContext):
+    Rating.delete().where(Rating.movie == call.data).execute()
+    Movie.delete().where(Movie.id == call.data).execute()
+    await call.answer('Фильм удален')
+    kbrd = types.InlineKeyboardMarkup()
+    for movie in Movie.select():
+        kbrd.add(types.InlineKeyboardButton(movie.title, callback_data=movie.id))
+    await call.message.edit_reply_markup(kbrd)
+
+
+@dp.callback_query_handler(Text(equals='send_result'))
+async def send_result(call: types.CallbackQuery):
+    for movie in Movie.select():
+        movie.update(vote=0).execute()
+    rating = get_rating()
+    leaders = [i for i in rating if i[1] == rating[0][1]]
+    result_kbrd = types.InlineKeyboardMarkup().add(types.InlineKeyboardButton('Результаты', callback_data='result'))
+    if len(leaders) == 1:
+        Movie.update(vote=100).where(Movie.id == leaders[0][0]).execute()
+        for user in User.select():
+            await dp.bot.send_message(user.telegram_id, f'У нас есть победитель!', reply_markup=result_kbrd)
+    else:
+        await AdminState.voting.set()
+        await call.message.edit_text('Победитель не определен, начать голование?', reply_markup=kbrd_y_n)
+
+
+def get_rating():
+    rating = [[movie, sum(i.grade for i in Rating.select().where(Rating.movie == movie.id))] for movie in
+              Movie.select()]
+    rating = sorted(rating, key=lambda x: x[1], reverse=True)
+    return rating

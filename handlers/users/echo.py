@@ -1,7 +1,7 @@
 import logging
 from aiogram import types
 from aiogram.dispatcher import FSMContext
-from .main_handler import voting, change_vote
+# from .main_handler import voting, change_vote
 
 from loader import dp
 
@@ -24,16 +24,5 @@ async def bot_echo_all(message: types.Message, state: FSMContext):
 
 
 @dp.callback_query_handler(state="*")
-async def clean_callback_query(call: types.CallbackQuery):
-    logging.info('Попали в эхо-хендлер, clean_callback_query')
-    if 'Выберите фильм' in call.message.text:
-        await voting(call)
-        return
-    elif 'Вы проголосовали за фильм' in call.message.text:
-        await change_vote(call)
-        return
-    elif call.data == 'hide':
-        await call.message.delete()
-    else:
-        await call.answer('Сейчас недоступно')
-        await call.message.delete()
+async def callback_echo(call: types.CallbackQuery, state: FSMContext):
+    logging.info(f'Callback echo {call.from_user.full_name} {call=} {state=}')

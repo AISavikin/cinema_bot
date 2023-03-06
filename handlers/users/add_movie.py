@@ -3,9 +3,9 @@ from states.states import CinemaState
 from utils.find_movies import find_movies
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
-from keyboards.inline.keyboards import kbrd_y_n, main_keyboard
+from keyboards.inline.keyboards import kbrd_y_n
 import aiogram.utils.markdown as fmt
-from utils.db_api.database import Movie
+from utils.db_api.database import Movie, User, Rating
 
 from loader import dp
 
@@ -14,10 +14,12 @@ async def movie_to_db(call: types.CallbackQuery, state: FSMContext, data: tuple)
     title, url = data
     user_id = call.from_user.id
     try:
-        Movie.create(title=title, url=url, user=user_id)
+        movie = Movie.create(title=title, url=url, user=user_id)
+        for user in User.select():
+            Rating.create(movie=movie.id, user=user.id, grade=0)
         await call.answer('Фильм добавлен в базу.', show_alert=True)
         await call.message.edit_text(f'Вы добавили:\n"{fmt.bold(title)}"',
-                                     parse_mode=types.ParseMode.MARKDOWN,
+                                     parse_mode=types.ParseMode.MARKDOWN_V2,
                                      reply_markup=types.InlineKeyboardMarkup())
         await state.finish()
     except Exception as e:
@@ -34,21 +36,14 @@ async def add_movie(msg: types.Message, state: FSMContext):
     movies = find_movies(title)
     if movies is None:
         await msg.answer('Я ничего не нашёл, попробуй ещё')
+        await msg.delete()
         return
     await state.update_data(data=movies)
     await msg.answer(f'Это он?\n{fmt.hide_link(movies["top_result"][1])}', reply_markup=kbrd_y_n,
                      parse_mode=types.ParseMode.HTML)
+    await msg.delete()
 
-@dp.message_handler(state=CinemaState.add_movie)
-async def find_movie(msg: types.Message, state: FSMContext):
-    title = msg.text
-    movies = find_movies(title)
-    if movies is None:
-        await msg.answer('Я ничего не нашёл, попробуй ещё')
-        return
-    await state.update_data(data=movies)
-    await msg.answer(f'Это он?\n{fmt.hide_link(movies["top_result"][1])}', reply_markup=kbrd_y_n,
-                     parse_mode=types.ParseMode.HTML)
+
 
 
 @dp.callback_query_handler(Text(equals='yes'), state=CinemaState.add_movie)
@@ -81,6 +76,5 @@ async def select_movie(call: types.CallbackQuery, state: FSMContext):
         await movie_to_db(call, state, (title, call.data))
 
     else:
-        print('SELECT MOVIE')
         await call.answer('Сейчас недоступно')
         await call.message.delete()

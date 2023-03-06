@@ -1,11 +1,11 @@
 from aiogram import types
 from aiogram.dispatcher.filters.builtin import CommandStart
 from utils.db_api.database import User
-from keyboards.inline.keyboards import main_keyboard
+from keyboards.default.keyboards import main_keyboard
 from loader import dp
 
 
-@dp.message_handler(CommandStart())
+@dp.message_handler(CommandStart(), state='*')
 async def bot_start(message: types.Message):
     telegram_id = message.from_user.id
     try:

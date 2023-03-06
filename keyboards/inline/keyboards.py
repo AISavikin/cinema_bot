@@ -1,7 +1,6 @@
 from aiogram import types
 
-main_keyboard = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-main_keyboard.add('🎞️ Посмотреть предложенное')
+
 buttons = [
     [
         types.InlineKeyboardButton('Да', callback_data='yes'),
@@ -13,10 +12,9 @@ buttons = [
 kbrd_y_n = types.InlineKeyboardMarkup(inline_keyboard=buttons)
 
 buttons = [
-    [types.InlineKeyboardButton('Начать голосование', callback_data='start_voting'),
-     types.InlineKeyboardButton('Второй тур', callback_data='second_tour')],
-    [types.InlineKeyboardButton('Промежуточные результаты', callback_data='inter_result'),
-     types.InlineKeyboardButton('Убрать просмотр', callback_data='del')],
+    [types.InlineKeyboardButton('Промежуточные результаты', callback_data='inter_result')],
     [types.InlineKeyboardButton('Отправить всем сообщение', callback_data='send_all')],
+    [types.InlineKeyboardButton('Удалить фильм', callback_data='del_movie')],
+    [types.InlineKeyboardButton('Отправить результаты', callback_data='send_result')],
 ]
 kbrd_admin = types.InlineKeyboardMarkup(inline_keyboard=buttons)
