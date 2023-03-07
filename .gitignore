@@ -130,4 +130,4 @@ dmypy.json
 .idea/*
 .env
 /conf.env
-/database.db
+/database2.db

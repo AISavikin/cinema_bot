@@ -1,4 +1,5 @@
 from aiogram import executor
+from utils.setup_bot import setup
 
 from loader import dp
 import middlewares, filters, handlers
@@ -15,6 +16,5 @@ async def on_startup(dispatcher):
 
 
 if __name__ == '__main__':
+    setup()
     executor.start_polling(dp, on_startup=on_startup)
-    # from utils.db_api.database import create_database
-    # create_database()

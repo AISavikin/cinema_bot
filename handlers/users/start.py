@@ -1,6 +1,6 @@
 from aiogram import types
 from aiogram.dispatcher.filters.builtin import CommandStart
-from utils.db_api.database import User
+from utils.db_api.database import User, Movie, Rating
 from keyboards.default.keyboards import main_keyboard
 from loader import dp
 
@@ -13,7 +13,9 @@ async def bot_start(message: types.Message):
         await message.answer(f'Привет, {name}!', reply_markup=main_keyboard)
     except:
         name = message.from_user.full_name
-        User.create(telegram_id=telegram_id, name=name)
+        user = User.create(telegram_id=telegram_id, name=name)
+        for movie in Movie.select():
+            Rating.create(movie=movie, user=user, grade=0)
         await message.answer(f'Привет, {name}!\nДобро пожаловать к нам!', reply_markup=main_keyboard)
 
 

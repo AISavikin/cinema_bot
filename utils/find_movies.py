@@ -28,5 +28,3 @@ def find_movies(title: str):
         movies['results'][title.text] = url
     return movies
 
-movie = find_movies('Принцесса специй')
-print(movie)

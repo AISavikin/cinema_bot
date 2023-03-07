@@ -12,9 +12,9 @@ from loader import dp
 
 async def movie_to_db(call: types.CallbackQuery, state: FSMContext, data: tuple):
     title, url = data
-    user_id = call.from_user.id
+    user = User.get(User.telegram_id == call.from_user.id)
     try:
-        movie = Movie.create(title=title, url=url, user=user_id)
+        movie = Movie.create(title=title, url=url, user=user)
         for user in User.select():
             Rating.create(movie=movie.id, user=user.id, grade=0)
         await call.answer('Фильм добавлен в базу.', show_alert=True)
@@ -42,8 +42,6 @@ async def add_movie(msg: types.Message, state: FSMContext):
     await msg.answer(f'Это он?\n{fmt.hide_link(movies["top_result"][1])}', reply_markup=kbrd_y_n,
                      parse_mode=types.ParseMode.HTML)
     await msg.delete()
-
-
 
 
 @dp.callback_query_handler(Text(equals='yes'), state=CinemaState.add_movie)

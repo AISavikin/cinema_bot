@@ -23,7 +23,7 @@ class Movie(BaseModel):
     id = AutoField(primary_key=True, unique=True)
     title = CharField(null=False, unique=True)
     url = CharField(null=False, unique=True)
-    user = IntegerField()
+    user = ForeignKeyField(User, related_name='movie')
     vote = IntegerField(default=0)
 
     def __str__(self):
@@ -38,7 +38,7 @@ class Rating(BaseModel):
 
 
 def create_database():
-    db.create_tables([User, Movie])
+    db.create_tables([User, Movie, Rating])
 
 
 if __name__ == '__main__':
